@@ -1,0 +1,43 @@
+AZURE_SUBSCRIPTION_NAME=ODP
+
+VELERO_CREDENTIALS_FILE=~/velero-secret-file-k8s-arck-dev-odp
+
+AZURE_BACKUP_RESOURCE_GROUP=kubernetes-backups
+AZURE_STORAGE_ACCOUNT_ID=stkubernetesbackups
+
+# While migrating from a SRC to a DST cluster, 
+#   the BLOB container will remain the same and will not change.
+# This is where the backups will be placed in, 
+#   and then picked from - for restore.
+#
+AZURE_BLOB_CONTAINER=backups-k8s-arck-dev-odp
+
+# During migration activity,
+#   for src/old cluster, this will be resource group of src/old kubernetes cluster.
+#   for dst/new cluster, this will be resource group of dst/new kubernetes cluster.
+#
+AZURE_RESOURCE_GROUP_FOR_K8S_CLUSTER=MC_rg-dev-kubernetes_arck-dev-odp_westeurope
+
+# During migration activity,
+#   for src/old cluster, this will be k8s context of src/old kubernetes cluster.
+#   for dst/new cluster, this will be k8s context of dst/new kubernetes cluster.
+#
+KUBECTL_CLUSTER_CONTEXT_NAME=arck-dev-odp
+
+AZURE_SERVICE_PRINCIPAL_NAME=velero-k8s-backup-helper
+AZURE_SERVICE_PRINCIPAL_SECRET=<--put-in-password-here-->
+
+
+
+# Note: The AZURE_SERVICE_PRINCIPAL_SECRET is created once,
+#         outside this config file, and outside the install script,
+#          and is saved at a safe location.
+#       Running the `az ad sp create-for-rbac` command multitple times
+#         changes the password each time, which is undesired.
+#       The value for AZURE_SERVICE_PRINCIPAL_NAME is used to 
+#           extract AZURE_SERVICE_PRINCIPAL_ID later in the install script,
+#           which is then assigned to AZURE_CLIENT_ID.
+#       The value for AZURE_SERVICE_PRINCIPAL_SECRET is assigned to AZURE_CLIENT_SECRET
+#           later in the install script.
+#       The value of AZURE_RESOURCE_GROUP_FOR_K8S_CLUSTER
+#           is assigned to AZURE_RESOURCE_GROUP later.
