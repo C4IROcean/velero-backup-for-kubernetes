@@ -1,27 +1,39 @@
-# Kubernetes backup / storage migration with Velero - on Azure
+# Kubernetes backup, restore and migration with Velero - on Azure
 
-References: 
-* https://github.com/vmware-tanzu/velero/tree/master
-* https://velero.io/docs/v1.8/basic-install/
-* https://velero.io/docs/v1.8/supported-providers/
-* https://github.com/vmware-tanzu/velero-plugin-for-microsoft-azure#setup
-* https://github.com/vmware-tanzu/velero-plugin-for-gcp#setup
-* https://vmware-tanzu.github.io/helm-charts/
+* Author: Kamran Azeem
+* Created: 20 Feb 2022
+* Updated: 04 May 2022
+* Reviewers: Thomas, Igor
 
-## Summary:
+**Note:** This is an engineering blog, and contains a lot of technical details.
+
+## Introduction:
+
+Until sometime ago, Kubernetes backup and restore used to be very challenging and involved process. However, with [Velero](https://velero.io) it is now almost a piece of cake!
+
+Consider a situation where you have a Kubernetes cluster, which you would like to upgrade/migrate to a newer cluster with newer configuration. In that case, you would like to save the complete state of each namespace, especially the precious persistent data stored in the persistent volumes, and take it to the new cluster. Velero can help you with that. It (Velero) does this by using bucket/BLOB storage in the cloud. It takes snapshots of your PV and PVCs, and stores them in the bucket store. It also takes snapshots of various other objects, such as deployments, statefulsets, daemonsets, configmaps, secrets, etc. Once a newer cluster is setup and Velero is configured to talk to the new kubenretes cluster, you can restore all of these objects in the new cluster, thus making this upgradation/migration process a breeze. Normally the backup is performed on a namespace level. i.e. You take full backup of a namespace and restore the entire namespace in the new cluster.
+
+A couple of months ago, we had a similar situation. We had a Kubernetes cluster in AKS (Azure Kubernetes Service) - which we wanted to reconfigure, but that re-configuration was only possible in a new cluster. We had some persistent data in this cluster, which needed to move to the newer cluster. This meant that we needed a backup and restore mechanism, and we found Velero to be suitable for this task. 
+
+Below is a conceptual diagram of what is described above.
+
 ```
-Old K8s cluster ---> (backup)---> blob storage ---> (restore) ---> New K8s cluster
+Old K8s cluster ---> (backup)---> BLOB storage ---> (restore) ---> New K8s cluster
           |                            |                            |
           -----------------------------------------------------------
                                        |
                               (backup-helper VM)
-    
+
+|<----------------------------Microsoft Cloud (Azure) ----------------------------->|    
 ```
 
 **Note:** It is assumed that the old and new k8s clusters will be part of the same Azure subscription.
 
-A dedicated VM (CENTOS 7.9) is created in MS cloud to handle backup and restore from several clusters. Most of the steps in this document are performed on this VM - unless stated otherwise.
+Although it is very much possible to setup Velero on your local/home/work computer, and get all of this done. We decided to create a dedicated VM (CENTOS 7.9) in MS cloud to handle backup and restore from several clusters. This helped us keeping the operational control at a central place instead of spreading it on every team member's computer. Most of the steps in this document are performed on this VM - unless mentioned otherwise. 
 
+
+
+## Setup:
 Log on to the backup-helper VM.
 
 ```
@@ -259,7 +271,7 @@ Now create a file that contains all the relevant environment variables. Remember
 Create the file for Velero:
 
 ```
-cat << EOF  > ~/credentials-velero-arck-dev-odp
+cat << EOF  > ~/velero-secret-file-k8s-arck-dev-odp.env
 # This top section of this file is used by velero program,
 #   during install operation.
 # This file can be safely "sourced" at login time,
@@ -289,7 +301,7 @@ EOF
 Once the file is created, verify that it contains all the variables with correct values.
 
 ```
-cat ~/credentials-velero-arck-dev-odp
+cat ~/velero-secret-file-k8s-arck-dev-odp.env
 ```
 
 ## Setup kubectl to talk to the SRC cluster:
@@ -392,7 +404,7 @@ velero install \
     --provider azure \
     --plugins velero/velero-plugin-for-microsoft-azure:v1.4.0 \
     --bucket ${AZURE_BLOB_CONTAINER} \
-    --secret-file ~/credentials-velero-arck-dev-odp \
+    --secret-file ~/velero-secret-file-k8s-arck-dev-odp.env \
     --backup-location-config resourceGroup=${AZURE_BACKUP_RESOURCE_GROUP},storageAccount=${AZURE_STORAGE_ACCOUNT_ID},subscriptionId=${AZURE_BACKUP_SUBSCRIPTION_ID} \
     --snapshot-location-config apiTimeout=5m,resourceGroup=${AZURE_BACKUP_RESOURCE_GROUP},subscriptionId=${AZURE_BACKUP_SUBSCRIPTION_ID}
 ```
@@ -648,7 +660,7 @@ Adjust the new config file. Remember we are migrating from a old cluster to a ne
 [velero@backup-helper ~]$ cat velero-install-k8s-arck-dev-odp-new.conf 
 AZURE_SUBSCRIPTION_NAME=ODP
 
-VELERO_CREDENTIALS_FILE=~/credentials-velero-k8s-arck-dev-odp-new
+VELERO_CREDENTIALS_FILE=~/velero-secret-file-k8s-arck-dev-odp-new.env
 
 AZURE_BACKUP_RESOURCE_GROUP=kubernetes-backups
 AZURE_STORAGE_ACCOUNT_ID=stkubernetesbackups
@@ -1215,6 +1227,16 @@ Preserve Service NodePorts:  auto
 We set out to test if we can migrate stuff from one cluster to another using velero backup and restore. The above shows that it works.
 
 
+The repository containing the velero installation script and this HowTo, is located here: [https://github.com/C4IROcean/infra-velero-k8s-backup](https://github.com/C4IROcean/infra-velero-k8s-backup)
+
+# References: 
+* https://github.com/vmware-tanzu/velero/tree/master
+* https://velero.io/docs/v1.8/basic-install/
+* https://velero.io/docs/v1.8/supported-providers/
+* https://github.com/vmware-tanzu/velero-plugin-for-microsoft-azure#setup
+* https://github.com/vmware-tanzu/velero-plugin-for-gcp#setup
+* https://vmware-tanzu.github.io/helm-charts/
+
 
 ------
 # Appendices:
@@ -1311,6 +1333,5 @@ NAME                                   BACKUP                  STATUS      START
 ns-traefik-2022-05-03-20220503142757   ns-traefik-2022-05-03   Completed   2022-05-03 14:27:57 +0200 CEST   2022-05-03 14:46:58 +0200 CEST   0        3          2022-05-03 14:27:57 +0200 CEST   <none>
 [velero@backup-helper ~]$ 
 ```
-
 
 
