@@ -2,8 +2,7 @@
 
 * Author: Kamran Azeem
 * Created: 20 Feb 2022
-* Updated: 04 May 2022
-* Reviewers: Thomas, Igor
+
 
 **Note:** This is an engineering blog, and contains a lot of technical details.
 
