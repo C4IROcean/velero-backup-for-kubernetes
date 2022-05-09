@@ -15,20 +15,11 @@ Below is a conceptual diagram of what is described above.
 | ![images/velero-backup.png](images/velero-backup.png) |
 |-------------------------------------------------------|
 
-```
-Old K8s cluster ---> (backup)---> BLOB storage ---> (restore) ---> New K8s cluster
-          |                            |                            |
-          -----------------------------------------------------------
-                                       |
-                              (backup-helper VM)
-
-|<----------------------------Microsoft Cloud (Azure) ----------------------------->|    
-```
 
 **Note:** It is assumed that the old and new k8s clusters are part of the same Azure subscription.
 
 Although it is very much possible to setup Velero on your local/home/work computer, and get all of this done. We decided to create a dedicated VM (CENTOS 7.9) in MS cloud to handle backup and restore from several clusters. This helped us keeping the operational control at a central place instead of spreading it on every team member's computer. Most of the steps in this document are performed on this VM - unless mentioned otherwise. 
 
 
-Buckle your seat belts; and click [this link](https://github.com/C4IROcean/velero-backup-for-kubernetes) to read the full article and be able to access the support files.
+Buckle your seat belts; and click [this link](https://github.com/C4IROcean/velero-backup-for-kubernetes/blob/master/README.md) to read the full article and be able to access the support files.
 
