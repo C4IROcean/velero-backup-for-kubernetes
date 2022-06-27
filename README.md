@@ -489,7 +489,10 @@ This namespace has PVC which use `stodpconnectordev`, which in-turn uses azure d
 Reference: https://velero.io/docs/v1.8/examples/
 
 ```
-$ velero backup create ns-daskhub-backup-2022-05-01 --include-namespaces daskhub
+$ velero backup create ns-daskhub-backup-2022-05-01  \
+  --default-volumes-to-restic=false \
+  --snapshot-volumes=true \
+  --include-namespaces daskhub 
 ```
 
 ```
@@ -1235,8 +1238,51 @@ Preserve Service NodePorts:  auto
 ```
 
 
+------
+# Setup schedule for backups:
 
-### Conclusion:
+We can ask velero to schedule (full) backups on a desired frequency - e.g. every week, or every day, etc. We can also setup retention period so backups are automatically removed when they expire. I personally think it is a good idea to separate backups using namespaces instead of performing one large backup containing multiple namespaces or everything.
+
+Velero supports `cron` compatible schedules.
+
+The command below will create a backup schedule for the `daskhub` namespace. The backup will be performed "everyday" (all days of the week), at "18:00" (6 PM), and will be expired after "7 days" (168 hours). 
+
+```
+velero schedule create daskhub-daily-6pm \
+  --schedule="0 18 * * *" \
+  --ttl 168h0m0s \
+  --default-volumes-to-restic=false \
+  --snapshot-volumes=true \
+  --include-namespaces daskhub
+```
+
+The command below will setup a separate scheduled backup job, which runs "everyday" (all days of the week), at "19:00" (7 PM), and will be expired after "7 days" (168 hours). 
+
+```
+velero schedule create prefect-daily-7pm \
+  --schedule="0 19 * * *" \
+  --ttl 168h0m0s \
+  --default-volumes-to-restic=false \
+  --snapshot-volumes=true \
+  --include-namespaces prefect  
+```
+  
+Here is how to check the scheduled jobs:
+
+```
+[velero@backup-helper ~]$ velero get schedule
+NAME                STATUS    CREATED                          SCHEDULE     BACKUP TTL   LAST BACKUP   SELECTOR
+daskhub-daily-6pm   Enabled   2022-06-27 11:22:03 +0200 CEST   0 18 * * *   168h0m0s     n/a           <none>
+prefect-daily-7pm   Enabled   2022-06-27 11:25:02 +0200 CEST   0 19 * * *   168h0m0s     n/a           <none>
+[velero@backup-helper ~]$ 
+```
+
+The storage space utilization in the storage account can be checked by visiting:
+* `Azure Portal --> Storage Account --> stkubernetesbackups --> Monitoring --> Insights`
+* `Azure Portal --> Storage Account --> stkubernetesbackups --> Monitoring --> Metrics`
+
+------
+# Conclusion:
 
 We set out to test if we can migrate stuff from one cluster to another using velero backup and restore. The above shows that it works.
 
